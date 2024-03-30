@@ -1,32 +1,40 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/sheeiavellie/medods290324/handlers"
+	"github.com/sheeiavellie/medods290324/middlewares"
 )
-
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
 
 func main() {
 	port := "1337"
+	ctx := context.Background()
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
 		"POST /sing-in",
-		handlers.HandleSingIn,
+		middlewares.ValidateUser(
+			ctx,
+			middlewares.SingIn(
+				ctx,
+				handlers.HandleSingIn,
+			),
+		),
 	)
 
 	mux.HandleFunc(
 		"POST /refresh",
-		handlers.HandleRefresh,
+		middlewares.ValidateRefresh(
+			ctx,
+			middlewares.Refresh(
+				ctx,
+				handlers.HandleRefresh,
+			),
+		),
 	)
 
 	log.Printf("server is listening on port: %s", port)
