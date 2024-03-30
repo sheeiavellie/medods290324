@@ -13,6 +13,8 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 }
 
 func main() {
+	port := "1337"
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
@@ -25,7 +27,7 @@ func main() {
 			}
 		},
 	)
-
-	log.Fatal(http.ListenAndServe("", mux))
+	log.Printf("server is listening on port: %s", port)
+	http.ListenAndServe(":"+port, mux)
 
 }
