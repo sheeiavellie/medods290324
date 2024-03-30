@@ -24,6 +24,7 @@ func main() {
 	}()
 
 	tokenService := services.NewTokenService([]byte("secret"))
+	sessionService := services.NewSessionService(client)
 
 	mux := http.NewServeMux()
 
@@ -31,7 +32,7 @@ func main() {
 		"POST /sing-in",
 		middlewares.SingIn(
 			ctx,
-			client,
+			sessionService,
 			tokenService,
 			handlers.HandleSingIn,
 		),
