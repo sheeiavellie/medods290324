@@ -25,7 +25,7 @@ func NewTokenService(signSecret []byte) *TokenService {
 func (ts *TokenService) IssueTokens(
 	user *data.User,
 ) (*data.TokensResponse, error) {
-	tokenJWT := ts.generateJWT(user.ID.String())
+	tokenJWT := ts.generateJWT(user.ID)
 	tokenJWTSigned, err := ts.signJWT(tokenJWT)
 	if err != nil {
 		return nil, err
