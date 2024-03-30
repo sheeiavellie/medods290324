@@ -6,15 +6,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sheeiavellie/medods290324/data"
 	"github.com/sheeiavellie/medods290324/services"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func SingIn(
 	ctx context.Context,
-	db *mongo.Client,
+	sessionService *services.SessionService,
 	tokenService *services.TokenService,
 	next http.HandlerFunc,
 ) http.HandlerFunc {
@@ -22,17 +20,11 @@ func SingIn(
 		userIDStr := r.URL.Query().Get("userID")
 		if userIDStr == "" {
 			log.Printf("userID was not provided.")
-			http.Error(w, "userID was not provided", http.StatusBadRequest)
+			http.Error(w, "userID was not provided.", http.StatusBadRequest)
 			return
 		}
 
-		var user *data.User
-
-		usersCollection := db.Database("amogus").Collection("users")
-		err := usersCollection.FindOne(
-			context.TODO(),
-			bson.M{"user_id": userIDStr},
-		).Decode(&user)
+		user, err := sessionService.GetUser(context.TODO(), userIDStr)
 		if err != nil {
 			switch {
 			case errors.Is(err, mongo.ErrNoDocuments):
@@ -52,27 +44,20 @@ func SingIn(
 			return
 		}
 
-		session, err := data.NewRefreshSession(user, tokens.RefreshToken)
+		err = sessionService.CreateRefreshSession(
+			context.TODO(),
+			user,
+			tokens.RefreshToken,
+		)
 		if err != nil {
 			log.Printf("Error while creating sessions: %v.", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		sessionsCollection := db.Database("amogus").Collection("sessions")
-		_, err = sessionsCollection.InsertOne(
-			context.TODO(),
-			session,
-		)
-		if err != nil {
-			log.Printf("Error while creating session: %v.", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
 		ctxRequestValue := context.WithValue(
 			r.Context(),
-			"",
+			contextKeyTokens,
 			tokens,
 		)
 		next(w, r.WithContext(ctxRequestValue))
