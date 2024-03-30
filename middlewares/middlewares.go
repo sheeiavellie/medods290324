@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/sheeiavellie/medods290324/data"
 	"github.com/sheeiavellie/medods290324/services"
+	"github.com/sheeiavellie/medods290324/util"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -70,6 +72,14 @@ func Refresh(
 	next http.HandlerFunc,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		refreshRequest := data.RefreshRequest{}
+		err := util.ReadJSON(r, &refreshRequest)
+		if err != nil {
+			log.Printf("Refresh token wasn't provided: %v.", err)
+			http.Error(w, "Refresh token wasn't provided.", http.StatusBadRequest)
+			return
+		}
+
 		next(w, r)
 	}
 }
