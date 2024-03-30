@@ -20,7 +20,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
-		"POST /sing-in/{userId}",
+		"POST /sing-in",
 		handlers.HandleSingIn,
 	)
 
