@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/sheeiavellie/medods290324/handlers"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
@@ -18,15 +20,15 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
-		"POST /amogus",
-		func(w http.ResponseWriter, _ *http.Request) {
-			err := WriteJSON(w, http.StatusOK, "AMONGAS")
-			if err != nil {
-				log.Printf("error: %v.", err)
-				return
-			}
-		},
+		"POST /sing-in/{userId}",
+		handlers.HandleSingIn,
 	)
+
+	mux.HandleFunc(
+		"POST /refresh",
+		handlers.HandleRefresh,
+	)
+
 	log.Printf("server is listening on port: %s", port)
 	http.ListenAndServe(":"+port, mux)
 
