@@ -26,4 +26,6 @@ func main() {
 		},
 	)
 
+	log.Fatal(http.ListenAndServe("", mux))
+
 }
