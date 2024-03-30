@@ -26,9 +26,9 @@ func SingIn(
 			return
 		}
 
-		usersCollection := db.Database("amogus").Collection("users")
-
 		var user *data.User
+
+		usersCollection := db.Database("amogus").Collection("users")
 		err := usersCollection.FindOne(
 			context.TODO(),
 			bson.M{"user_id": userIDStr},
@@ -36,17 +36,46 @@ func SingIn(
 		if err != nil {
 			switch {
 			case errors.Is(err, mongo.ErrNoDocuments):
-				log.Println("no document :(")
+				log.Printf("User with ID: %s doen't exist: %v.", userIDStr, err)
+				http.Error(w, "User with given ID doen't exist.", http.StatusBadRequest)
 			default:
-				log.Printf("error getting user: %v.", err)
+				log.Printf("Error getting user: %v.", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 			return
 		}
 
-		// check if user exists in db
-		// if he does, than issue tokens
-		// then create refresh session
-		next(w, r)
+		tokens, err := tokenService.IssueTokens(user)
+		if err != nil {
+			log.Printf("Error while issueing tokens: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		session, err := data.NewRefreshSession(user, tokens.RefreshToken)
+		if err != nil {
+			log.Printf("Error while creating sessions: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		sessionsCollection := db.Database("amogus").Collection("sessions")
+		_, err = sessionsCollection.InsertOne(
+			context.TODO(),
+			session,
+		)
+		if err != nil {
+			log.Printf("Error while creating session: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		ctxRequestValue := context.WithValue(
+			r.Context(),
+			"",
+			tokens,
+		)
+		next(w, r.WithContext(ctxRequestValue))
 	}
 }
 
