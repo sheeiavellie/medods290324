@@ -6,6 +6,12 @@ import (
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	refreshTTL = time.Hour * 24 * 30
+	cost       = 10
 )
 
 type User struct {
@@ -40,11 +46,23 @@ func (u *User) UnmarshalBSON(data []byte) error {
 }
 
 type RefreshSession struct {
-	ID           uuid.UUID
-	UserID       uuid.UUID
-	RefreshToken string
-	ExpiresIn    time.Time
-	CreatedAt    time.Time
+	UserID       uuid.UUID `bson:"user_id"`
+	RefreshToken string    `bson:"refresh_token"`
+	ExpiresIn    time.Time `bson:"expires_in"`
+	CreatedAt    time.Time `bson:"created_at"`
+}
+
+func NewRefreshSession(user *User, refreshToken string) (*RefreshSession, error) {
+	refreshTokenHash, err := bcrypt.GenerateFromPassword([]byte(refreshToken), 10)
+	if err != nil {
+		return nil, err
+	}
+	return &RefreshSession{
+		UserID:       user.ID,
+		RefreshToken: string(refreshTokenHash),
+		ExpiresIn:    time.Now().Add(refreshTTL),
+		CreatedAt:    time.Now(),
+	}, nil
 }
 
 type TokensResponse struct {
