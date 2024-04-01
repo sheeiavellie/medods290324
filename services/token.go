@@ -35,7 +35,7 @@ func (ts *TokenService) IssueTokens(
 		return nil, err
 	}
 
-	tokenRefresh, err := ts.generateRefreshToken(sessionID)
+	tokenRefresh, err := ts.generateRefreshToken(sessionID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +44,23 @@ func (ts *TokenService) IssueTokens(
 		AccessToken:  tokenJWTSigned,
 		RefreshToken: tokenRefresh,
 	}, nil
+}
+
+func (ts *TokenService) DecodeRefreshToken(
+	refreshToken string,
+) (*data.RefreshTokenClaims, error) {
+	refreshStr, err := base64.StdEncoding.DecodeString(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	var claims data.RefreshTokenClaims
+	err = json.Unmarshal(refreshStr, &claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return &claims, nil
 }
 
 func (ts *TokenService) generateJWT(
@@ -72,9 +89,11 @@ func (ts *TokenService) signJWT(token *jwt.Token) (string, error) {
 
 func (ts *TokenService) generateRefreshToken(
 	sessionID string,
+	userID string,
 ) (string, error) {
 	claims := data.RefreshTokenClaims{
 		SessionID: sessionID,
+		UserID:    userID,
 	}
 
 	refreshStr, err := json.Marshal(claims)

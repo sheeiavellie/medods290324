@@ -14,6 +14,7 @@ type User struct {
 
 type RefreshTokenClaims struct {
 	SessionID string `json:"session_id"`
+	UserID    string `json:"user_id"`
 }
 
 type RefreshSession struct {
