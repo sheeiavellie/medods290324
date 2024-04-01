@@ -52,7 +52,7 @@ func SingIn(
 		err = sessionService.CreateRefreshSession(
 			context.TODO(),
 			refreshSessionID,
-			user,
+			user.ID,
 			tokens.RefreshToken,
 		)
 		if err != nil {
@@ -72,7 +72,8 @@ func SingIn(
 
 func Refresh(
 	ctx context.Context,
-	db *mongo.Client,
+	sessionService *services.SessionService,
+	tokenService *services.TokenService,
 	next http.HandlerFunc,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -84,10 +85,55 @@ func Refresh(
 			return
 		}
 
+		refreshTokenClaims, err := tokenService.DecodeRefreshToken(
+			refreshRequest.RefreshToken,
+		)
+		if err != nil {
+		}
+
+		err = sessionService.ValidateRefreshSession(
+			context.TODO(),
+			refreshTokenClaims.SessionID,
+			refreshRequest.RefreshToken,
+		)
+		if err != nil {
+		}
+
+		err = sessionService.DeleteRefreshSession(
+			context.TODO(),
+			refreshTokenClaims.SessionID,
+		)
+		if err != nil {
+		}
+
+		refreshSessionID := uuid.New().String()
+
+		tokens, err := tokenService.IssueTokens(
+			refreshTokenClaims.UserID,
+			refreshSessionID,
+		)
+		if err != nil {
+			log.Printf("Error while issueing tokens: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		err = sessionService.CreateRefreshSession(
+			context.TODO(),
+			refreshSessionID,
+			refreshTokenClaims.UserID,
+			tokens.RefreshToken,
+		)
+		if err != nil {
+			log.Printf("Error while creating sessions: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
 		ctxRequestValue := context.WithValue(
 			r.Context(),
 			contextKeyTokens,
-			"",
+			tokens,
 		)
 		next(w, r.WithContext(ctxRequestValue))
 	}
