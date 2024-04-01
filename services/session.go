@@ -2,10 +2,15 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/sheeiavellie/medods290324/data"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+const (
+	refreshTTL = time.Hour * 24 * 30
 )
 
 type SessionService struct {
@@ -39,10 +44,17 @@ func (s *SessionService) GetUser(
 
 func (s *SessionService) CreateRefreshSession(
 	ctx context.Context,
+	sessionID string,
 	user *data.User,
 	refreshToken string,
 ) error {
-	session, err := data.NewRefreshSession(user, refreshToken)
+	session, err := data.NewRefreshSession(
+		sessionID,
+		user.ID,
+		refreshToken,
+		time.Now(),
+		refreshTTL,
+	)
 	if err != nil {
 		return err
 	}
@@ -59,5 +71,9 @@ func (s *SessionService) CreateRefreshSession(
 	return nil
 }
 
-func (s *SessionService) GetRefreshSession(refreshToken string) {
+func (s *SessionService) DeleteRefreshSession(
+	ctx context.Context,
+	sessionID string,
+	refreshToken string,
+) error {
 }

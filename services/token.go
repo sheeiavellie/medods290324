@@ -1,10 +1,11 @@
 package services
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/sheeiavellie/medods290324/data"
 )
 
@@ -23,15 +24,18 @@ func NewTokenService(signSecret []byte) *TokenService {
 }
 
 func (ts *TokenService) IssueTokens(
-	user *data.User,
+	userID string,
+	sessionID string,
 ) (*data.TokensResponse, error) {
-	tokenJWT := ts.generateJWT(user.ID)
+	issuingTime := time.Now()
+
+	tokenJWT := ts.generateJWT(userID, issuingTime)
 	tokenJWTSigned, err := ts.signJWT(tokenJWT)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenRefresh, err := ts.generateRefreshToken()
+	tokenRefresh, err := ts.generateRefreshToken(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +46,16 @@ func (ts *TokenService) IssueTokens(
 	}, nil
 }
 
-func (ts *TokenService) generateJWT(subject string) *jwt.Token {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(jwtTTL)},
-		Subject:   subject,
+func (ts *TokenService) generateJWT(
+	userID string,
+	issuingTime time.Time,
+) *jwt.Token {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, data.JWTTokenClaims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: &jwt.NumericDate{Time: issuingTime.Add(jwtTTL)},
+			IssuedAt:  &jwt.NumericDate{Time: issuingTime},
+		},
 	})
 
 	return token
@@ -60,8 +70,19 @@ func (ts *TokenService) signJWT(token *jwt.Token) (string, error) {
 	return tokenStr, nil
 }
 
-func (ts *TokenService) generateRefreshToken() (string, error) {
-	refreshToken := uuid.New().String()
+func (ts *TokenService) generateRefreshToken(
+	sessionID string,
+) (string, error) {
+	claims := data.RefreshTokenClaims{
+		SessionID: sessionID,
+	}
+
+	refreshStr, err := json.Marshal(claims)
+	if err != nil {
+		return "", err
+	}
+
+	refreshToken := base64.StdEncoding.EncodeToString(refreshStr)
 
 	return refreshToken, nil
 }
