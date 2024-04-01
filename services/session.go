@@ -7,6 +7,7 @@ import (
 	"github.com/sheeiavellie/medods290324/data"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -45,12 +46,12 @@ func (s *SessionService) GetUser(
 func (s *SessionService) CreateRefreshSession(
 	ctx context.Context,
 	sessionID string,
-	user *data.User,
+	userID string,
 	refreshToken string,
 ) error {
 	session, err := data.NewRefreshSession(
 		sessionID,
-		user.ID,
+		userID,
 		refreshToken,
 		time.Now(),
 		refreshTTL,
@@ -74,6 +75,47 @@ func (s *SessionService) CreateRefreshSession(
 func (s *SessionService) DeleteRefreshSession(
 	ctx context.Context,
 	sessionID string,
+) error {
+	sessionsCollection := s.client.Database("amogus").Collection("sessions")
+
+	_, err := sessionsCollection.DeleteOne(
+		ctx,
+		bson.M{"session_id": sessionID},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SessionService) ValidateRefreshSession(
+	ctx context.Context,
+	sessionID string,
 	refreshToken string,
 ) error {
+	sessionsCollection := s.client.Database("amogus").Collection("sessions")
+
+	var curSession data.RefreshSession
+	err := sessionsCollection.FindOne(
+		ctx,
+		bson.M{"session_id": sessionID},
+	).Decode(&curSession)
+	if err != nil {
+		return err
+	}
+
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(curSession.RefreshToken),
+		[]byte(refreshToken),
+	)
+	if err != nil {
+		return err
+	}
+
+	if !time.Now().Before(curSession.ExpiresIn) {
+		return err
+	}
+
+	return nil
 }
