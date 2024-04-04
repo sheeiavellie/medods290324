@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/sheeiavellie/medods290324/data"
@@ -12,6 +13,10 @@ import (
 
 const (
 	refreshTTL = time.Hour * 24 * 30
+)
+
+var (
+	ErrorInvalidRefresh = fmt.Errorf("error invalid refresh")
 )
 
 type SessionService struct {
@@ -93,7 +98,7 @@ func (s *SessionService) ValidateRefreshSession(
 	ctx context.Context,
 	sessionID string,
 	refreshToken string,
-) error {
+) (*data.RefreshSession, error) {
 	sessionsCollection := s.client.Database("amogus").Collection("sessions")
 
 	var curSession data.RefreshSession
@@ -102,7 +107,7 @@ func (s *SessionService) ValidateRefreshSession(
 		bson.M{"session_id": sessionID},
 	).Decode(&curSession)
 	if err != nil {
-		return err
+		return nil, ErrorInvalidRefresh
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -110,12 +115,12 @@ func (s *SessionService) ValidateRefreshSession(
 		[]byte(refreshToken),
 	)
 	if err != nil {
-		return err
+		return nil, ErrorInvalidRefresh
 	}
 
 	if !time.Now().Before(curSession.ExpiresIn) {
-		return err
+		return nil, ErrorInvalidRefresh
 	}
 
-	return nil
+	return &curSession, nil
 }

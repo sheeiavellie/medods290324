@@ -42,7 +42,8 @@ func main() {
 		"POST /refresh",
 		middlewares.Refresh(
 			ctx,
-			client,
+			sessionService,
+			tokenService,
 			handlers.HandleRefresh,
 		),
 	)

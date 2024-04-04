@@ -89,14 +89,27 @@ func Refresh(
 			refreshRequest.RefreshToken,
 		)
 		if err != nil {
+			log.Printf("Decoding refresh went wrong: %v", err)
+			switch {
+			case errors.Is(err, services.ErrorDecodingBase64):
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			case errors.Is(err, services.ErrorUnmarshalRefresh):
+				http.Error(w, "Wrong token format.", http.StatusBadRequest)
+			default:
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+			return
 		}
 
-		err = sessionService.ValidateRefreshSession(
+		curSession, err := sessionService.ValidateRefreshSession(
 			context.TODO(),
 			refreshTokenClaims.SessionID,
 			refreshRequest.RefreshToken,
 		)
 		if err != nil {
+			log.Printf("Refresh validation went wrong: %v", err)
+			http.Error(w, "Invalid refresh token.", http.StatusBadRequest)
+			return
 		}
 
 		err = sessionService.DeleteRefreshSession(
@@ -104,12 +117,15 @@ func Refresh(
 			refreshTokenClaims.SessionID,
 		)
 		if err != nil {
+			log.Printf("Deleting old session went wrong: %v.", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
 
 		refreshSessionID := uuid.New().String()
 
 		tokens, err := tokenService.IssueTokens(
-			refreshTokenClaims.UserID,
+			curSession.UserID,
 			refreshSessionID,
 		)
 		if err != nil {
@@ -121,7 +137,7 @@ func Refresh(
 		err = sessionService.CreateRefreshSession(
 			context.TODO(),
 			refreshSessionID,
-			refreshTokenClaims.UserID,
+			curSession.UserID,
 			tokens.RefreshToken,
 		)
 		if err != nil {

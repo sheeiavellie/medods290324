@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -11,6 +12,11 @@ import (
 
 const (
 	jwtTTL = time.Minute * 15
+)
+
+var (
+	ErrorDecodingBase64   = fmt.Errorf("error decoding base64")
+	ErrorUnmarshalRefresh = fmt.Errorf("error unmarshaling refresh")
 )
 
 type TokenService struct {
@@ -35,7 +41,7 @@ func (ts *TokenService) IssueTokens(
 		return nil, err
 	}
 
-	tokenRefresh, err := ts.generateRefreshToken(sessionID, userID)
+	tokenRefresh, err := ts.generateRefreshToken(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,13 +57,13 @@ func (ts *TokenService) DecodeRefreshToken(
 ) (*data.RefreshTokenClaims, error) {
 	refreshStr, err := base64.StdEncoding.DecodeString(refreshToken)
 	if err != nil {
-		return nil, err
+		return nil, ErrorDecodingBase64
 	}
 
 	var claims data.RefreshTokenClaims
 	err = json.Unmarshal(refreshStr, &claims)
 	if err != nil {
-		return nil, err
+		return nil, ErrorUnmarshalRefresh
 	}
 
 	return &claims, nil
@@ -89,11 +95,9 @@ func (ts *TokenService) signJWT(token *jwt.Token) (string, error) {
 
 func (ts *TokenService) generateRefreshToken(
 	sessionID string,
-	userID string,
 ) (string, error) {
 	claims := data.RefreshTokenClaims{
 		SessionID: sessionID,
-		UserID:    userID,
 	}
 
 	refreshStr, err := json.Marshal(claims)
